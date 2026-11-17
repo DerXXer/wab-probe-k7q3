@@ -517,6 +517,20 @@ footer > div:first-child nav{display:grid!important;grid-template-columns:repeat
  .w-held{height:56vh}
 }
 /* Probe-Hinweis entfaellt bewusst: Seite ist noindex und nirgends verlinkt */
+/* Titelbild sichtbar: das Live-CSS blendet Lodgifys Bild aus und setzt am Handy ein Hintergrundbild */
+.held .held-bild{opacity:1!important}
+/* Handy: Buchungsleiste schmal, Felder erst nach Antippen */
+@media (max-width:900px){
+ .w-leiste:not(.offen) .suche .feld{display:none}
+ .w-leiste:not(.offen) .suche{grid-template-columns:minmax(0,1fr)}
+ .w-leiste-in{flex-direction:row;flex-wrap:wrap;align-items:center}
+ .w-leiste .suche{flex:1 1 100%}
+ .w-leiste:not(.offen) .w-leiste-in{flex-wrap:nowrap}
+ .w-leiste:not(.offen) .suche{flex:0 0 auto;width:auto}
+ .w-leiste:not(.offen) .suche:has(.suche-info:not(:empty)){flex:1 1 auto}
+ .w-leiste:not(.offen) .suche button{min-height:48px;margin:0;padding:0 18px}
+ .w-leiste:not(.offen) .suche-info{font-size:14px;padding:0 0 6px}
+}
 </style>
 </head>
 <body>
@@ -682,6 +696,8 @@ document.querySelectorAll('form.suche').forEach(function(f){
  ab.addEventListener('change',zurueck);f.gaeste.addEventListener('change',zurueck);
  function pruefen(){
   info.className='suche-info';
+  var leiste=f.closest('.w-leiste');
+  if(leiste&&!leiste.classList.contains('offen')&&matchMedia('(max-width:900px)').matches&&(!an.value||!ab.value)){leiste.classList.add('offen');info.textContent='';an.focus();return}
   if(!an.value||!ab.value||ab.value<=an.value){info.textContent='Bitte Anreise und Abreise wählen.';info.className+=' fehler';return}
   var g=+f.gaeste.value,n=naechte(an.value,ab.value);
   if(id){
