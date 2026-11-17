@@ -293,59 +293,56 @@ details p{margin:0 0 20px}
 <script>(function(){
 var API='https://api.lodgify.com/v2/search/451145';
 var CO='https://checkout.lodgify.com/de/wohnen-am-bergpark/';
-var KAL='https://checkout.lodgify.com/api/v2/websites/wohnen-am-bergpark/rentals/';
+var R='https://checkout.lodgify.com/api/v2/websites/wohnen-am-bergpark/rentals/';
 function iso(d){return d.toISOString().slice(0,10)}
 function naechte(a,b){return Math.round((Date.parse(b)-Date.parse(a))/864e5)}
-function euro(x){return Math.round(x).toLocaleString('de-DE')+' €'}
-function suche(body){return fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','Accept-Language':'de'},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(j){return (j.data&&j.data.items||[]).filter(function(i){return i.property_id})})}
-var q=new URLSearchParams(location.search);
-var heute=iso(new Date());
+function euro(x){return x.toLocaleString('de-DE',{minimumFractionDigits:x%1?2:0,maximumFractionDigits:2})+' €'}
+function nt(n){return n+(n==1?' Nacht':' Nächte')}
+function preis(id,a,b,g){return fetch(R+id+'/price?arrival='+a+'&departure='+b+'&currency=EUR&adults='+g+'&language=de',{headers:{Accept:'application/json'}}).then(function(r){return r.json().then(function(j){return r.ok?{ok:true,total:j.totalPrice.total}:{ok:false,grund:j.title||j.detail||'nicht buchbar'}})})}
+function checkout(id,a,b,g){return CO+id+'/reservation?currency=EUR&arrival='+a+'&departure='+b+'&adults='+g}
+var q=new URLSearchParams(location.search),heute=iso(new Date());
 document.querySelectorAll('form.suche').forEach(function(f){
- var an=f.an,ab=f.ab,info=f.querySelector('.suche-info');
+ var an=f.an,ab=f.ab,info=f.querySelector('.suche-info'),btn=f.querySelector('button'),text0=btn.textContent,id=f.dataset.einheit,ziel=null;
  an.min=heute;ab.min=heute;
  if(q.get('an'))an.value=q.get('an');if(q.get('ab'))ab.value=q.get('ab');if(q.get('g'))f.gaeste.value=q.get('g');
- an.addEventListener('change',function(){if(an.value){var m=new Date(Date.parse(an.value)+864e5);ab.min=iso(m);if(!ab.value||ab.value<=an.value)ab.value=iso(new Date(Date.parse(an.value)+3*864e5))}});
- f.addEventListener('submit',function(ev){
-  ev.preventDefault();info.className='suche-info';
+ function zurueck(){ziel=null;btn.textContent=text0;info.textContent='';info.className='suche-info'}
+ an.addEventListener('change',function(){if(an.value){ab.min=iso(new Date(Date.parse(an.value)+864e5));if(!ab.value||ab.value<=an.value)ab.value=iso(new Date(Date.parse(an.value)+3*864e5))}zurueck()});
+ ab.addEventListener('change',zurueck);f.gaeste.addEventListener('change',zurueck);
+ function pruefen(){
+  info.className='suche-info';
   if(!an.value||!ab.value||ab.value<=an.value){info.textContent='Bitte Anreise und Abreise wählen.';info.className+=' fehler';return}
-  var g=+f.gaeste.value,n=naechte(an.value,ab.value),id=f.dataset.einheit;
+  var g=+f.gaeste.value,n=naechte(an.value,ab.value);
   if(id){
-   var ziel=CO+id+'/reservation?currency=EUR&arrival='+an.value+'&departure='+ab.value+'&adults='+g;
-   info.textContent='Einen Moment, wir prüfen den Kalender …';
-   var fertig=false;var weiter=function(){if(!fertig){fertig=true;location.href=ziel}};
-   setTimeout(weiter,2500);
-   fetch(KAL+id+'/calendar?startDate='+an.value,{headers:{Accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){
-    if(fertig)return;var tage=(j.calendar||[]).reduce(function(m,t){m[t.date]=t;return m},{});var t=tage[an.value];
-    if(t&&!t.isCheckInAvailable){fertig=true;info.textContent='Am '+new Date(an.value).toLocaleDateString('de-DE')+' ist keine Anreise möglich. Bitte ein anderes Datum wählen.';info.className+=' fehler';return}
-    if(t&&t.minimalStay&&n<t.minimalStay){fertig=true;info.textContent='Ab diesem Tag bleibst du mindestens '+t.minimalStay+' Nächte.';info.className+=' fehler';return}
-    weiter();
-   }).catch(weiter);
+   if(ziel){location.href=ziel;return}
+   info.textContent='Einen Moment, wir prüfen deine Daten …';
+   preis(id,an.value,ab.value,g).then(function(p){
+    if(p.ok){ziel=checkout(id,an.value,ab.value,g);info.innerHTML='<strong>'+euro(p.total)+'</strong> für '+nt(n)+', alles inklusive: Endreinigung, Bettwäsche, Übernachtungssteuer.';btn.textContent='Weiter zur Buchung';}
+    else{info.textContent=p.grund+'. Bitte andere Daten wählen.';info.className+=' fehler'}
+   }).catch(function(){location.href=checkout(id,an.value,ab.value,g)});
    return;
   }
   info.textContent='Suche freie Wohnungen …';
-  suche({people:g,start:an.value,end:ab.value,grouped_facilities:'',sort:'price'}).then(function(items){zeige(items,g,n,an.value,ab.value,info)}).catch(function(){zeige(null,g,n,an.value,ab.value,info)});
- });
+  var karten=[].slice.call(document.querySelectorAll('.karte'));
+  Promise.all(karten.map(function(k){
+   if(+k.dataset.gaeste<g)return Promise.resolve({k:k,ok:false});
+   return preis(k.dataset.id,an.value,ab.value,g).then(function(p){p.k=k;return p}).catch(function(){return {k:k,ok:false}});
+  })).then(function(erg){
+   var zahl=0;
+   erg.forEach(function(e){var k=e.k,p=k.querySelector('[data-preis]'),l=k.querySelector('a');
+    var u=new URL(l.href);u.search='?an='+an.value+'&ab='+ab.value+'&g='+g;l.href=u.href;
+    k.hidden=!e.ok;if(e.ok){zahl++;p.textContent=euro(e.total)+' für '+nt(n)+', alles inklusive';p.classList.add('frei')}});
+   info.textContent='';
+   document.querySelector('.treffer').textContent=zahl?(zahl+(zahl==1?' Wohnung ist':' Wohnungen sind')+' vom '+new Date(an.value).toLocaleDateString('de-DE')+' bis '+new Date(ab.value).toLocaleDateString('de-DE')+' frei. Preise inklusive Endreinigung und Übernachtungssteuer.'):'Für diese Daten ist keine Wohnung frei. Probier andere Tage oder ruf uns an.';
+   document.getElementById('wohnungen').scrollIntoView();
+  });
+ }
+ f.addEventListener('submit',function(ev){ev.preventDefault();pruefen()});
+ if(id&&an.value&&ab.value)pruefen();
 });
-function zeige(items,g,n,a,b,info){
- var karten=document.querySelectorAll('.karte'),frei={},treffer=document.querySelector('.treffer');
- (items||[]).forEach(function(i){frei[i.property_id]=i});
- var genutzt=items&&items.length,zahl=0;
- karten.forEach(function(k){
-  var id=k.dataset.id,passt=+k.dataset.gaeste>=g,p=k.querySelector('[data-preis]'),l=k.querySelector('a');
-  var u=new URL(l.href);u.search='?an='+a+'&ab='+b+'&g='+g;l.href=u.pathname+u.search;
-  if(genutzt){k.hidden=!frei[id];if(frei[id]){zahl++;p.textContent=euro(frei[id].min_price)+' für '+n+(n==1?' Nacht':' Nächte')+', Endreinigung inklusive';p.classList.add('frei')}}
-  else{k.hidden=!passt;if(passt)zahl++}
- });
- info.textContent='';
- treffer.textContent=genutzt?(zahl+(zahl==1?' Wohnung ist':' Wohnungen sind')+' für deine Daten frei.'):(zahl+' Wohnungen passen für '+g+(g==1?' Gast':' Gäste')+'. Den Endpreis für deine Daten siehst du auf der Wohnungsseite.');
- document.getElementById('wohnungen').scrollIntoView();
-}
 // Ab-Preise live nachziehen
-suche({people:1,grouped_facilities:'',sort:'price'}).then(function(items){items.forEach(function(i){
+fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept-Language':'de'},body:JSON.stringify({people:1,grouped_facilities:'',sort:'price'})}).then(function(r){return r.json()}).then(function(j){(j.data.items||[]).forEach(function(i){if(!i.property_id)return;
  document.querySelectorAll('.karte[data-id="'+i.property_id+'"] [data-preis]').forEach(function(p){if(!p.classList.contains('frei'))p.textContent='ab '+euro(i.min_price_per_night)+' pro Nacht, Endreinigung inklusive'});
- document.querySelectorAll('[data-preis-einheit="'+i.property_id+'"]').forEach(function(p){p.textContent=p.closest('.handyleiste')?'ab '+euro(i.min_price_per_night)+' / Nacht':'ab '+euro(i.min_price_per_night)+' pro Nacht, Endreinigung inklusive'});
 })}).catch(function(){});
-// Handyleiste ausblenden, solange die Buchungsbox sichtbar ist
 var box=document.getElementById('buchen'),leiste=document.querySelector('.handyleiste');
 if(box&&leiste&&'IntersectionObserver' in window){new IntersectionObserver(function(e){leiste.classList.toggle('weg',e[0].isIntersecting)}).observe(box)}
 })();
