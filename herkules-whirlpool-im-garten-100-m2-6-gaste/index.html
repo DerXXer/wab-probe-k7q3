@@ -455,6 +455,12 @@ button.primary:active,a.primary:active,.wab-btn:active,[data-testid="button"].pr
 @media (max-width:767px){.wab-osm{height:420px}.wab-osm-knopf{width:100%}}
 @media (prefers-reduced-motion:reduce){.wab-osm{animation:none}.wab-osm-knopf{transition:none}}
 
+/* Fusszeile in vier Spalten (Themenseiten, 16.11.2026): Ordner der Footer-Navigation als Spalten oben ausgerichtet; Telefon/Waehrung/Sprache ueber der Linie statt absolut oben rechts */
+footer > div:first-child nav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 32px;align-items:start!important;padding:36px 40px 24px!important}footer nav > div{display:flex!important;flex-direction:column;align-items:flex-start;gap:9px;min-width:0;margin:0!important;padding:0!important}footer nav > div span{display:block;font-size:12px!important;letter-spacing:.3em;text-transform:uppercase;color:var(--wab-muted)!important;font-weight:400!important;margin:0 0 4px!important;padding:0!important}footer nav > div a{font-size:15px;line-height:1.4;white-space:normal}footer nav a:hover,footer nav a:focus-visible{text-decoration:underline;text-decoration-color:var(--wab-kupfer)}footer > div:last-child > div > div:first-child{position:static!important;padding:0 40px 16px!important}footer > div:last-child > div > div:first-child .options{justify-content:flex-start}
+@media (max-width:1023px){footer > div:first-child nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:599px){footer > div:first-child nav{grid-template-columns:minmax(0,1fr);padding:26px 24px 12px!important;gap:24px}footer > div:last-child > div > div:first-child{padding:0 24px 16px!important}}
+@media (pointer:coarse),(max-width:767px){footer nav > div{gap:0}footer nav > div span{margin:0 0 2px!important}footer nav > div a{display:flex;align-items:center;min-height:44px}footer [data-testid="phone-link"]{display:inline-flex!important;align-items:center;min-height:44px}}
+
 /* Nach dem Live-CSS: Wohnungsseite (Lodgify-Aufbau nachgebaut) */
 .w-held{position:relative;height:calc(100svh - 185px);min-height:320px;max-height:820px;overflow:hidden;background:var(--wab-sand)}
 .w-held picture,.w-held img{width:100%;height:100%;object-fit:cover}
